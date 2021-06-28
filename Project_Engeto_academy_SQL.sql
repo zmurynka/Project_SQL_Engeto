@@ -72,7 +72,7 @@ CREATE OR REPLACE VIEW pocet_hodin AS
 SELECT 
 	w.city,
 	w.`date`,
-	w.COUNT(time)*3 AS pocet_hodin_bez_srazek,
+	COUNT(w.`time`)*3 AS pocet_hodin_bez_srazek,
 	w.rain, 
 	c.country 
 FROM weather w
@@ -131,10 +131,10 @@ SELECT
 	tv.`date`,
 	cp.pracovni_den,
 	cp.rocni_obdobi,
-	eo.hustota_zalidneni,
+	n.hustota_zalidneni,
 	eo.HDP_na_obyvatele,
  	eo.gini_koeficient,
- 	ud.detska_umrtnost,
+ 	eo.detska_umrtnost,
 	tv.prumerna_doba_doziti_2018,
 	n.nabozenstvi_ratio,
 	rd.rozdil_doziti_2015_1965,
