@@ -1,27 +1,101 @@
- #------------------------------------------------------------------------------------------------------------------------------------------
-#nejprve si upravim tabulky, aby meli spravna data (rozdilne nazvy pro CR)
-update covid19_basic_differences 
-set country = 'Czech Republic'
-where country = 'Czechia';
+#tohle bude zdlouhave a asi to jde udelat lip, ale nenapada me jak
+ 
+#tady si zjistim rozdilne zeme z economies tabulky, ignoruji kontinenty a skupiny statu (jako Fragile and conflict affected situations) a staty pod milion obyvatel (nematerialni)
+ 
+ SELECT 
+ 	DISTINCT  country
+ FROM economies e 
+	WHERE country NOT IN 
+		(SELECT country FROM countries c)
+	AND population>1000000;
 
-update lookup_table 
-set country = 'Czech Republic'
-where country = 'Czechia';
+
+#tady si vzdy hledam, jak se jednotlive staty jmenuji v tabulce countries, kterou jsem si zvolila jako vychozi pro pojmenovani zemi
+SELECT country, population FROM countries c WHERE country LIKE "%Ta%"
+
+#nasla jsem staty (v zavorce vzdy nazev dle tabulky country): Kosovo(neni), Libya (Libyan Arab Jamahiriya), Palestine(neni)
+UPDATE economies 
+SET country = 'Libyan Arab Jamahiriya'
+WHERE country = 'Libya';
+
+#Libya, Palestine, Taiwan (dle wikipedie je jako Republic of China, ale v countries jsem nic podobneho nenasla), Timor (East Timor, ale neni ani recena populace)
+ SELECT 
+ 	DISTINCT  country
+ FROM life_expectancy le 
+	WHERE country NOT IN 
+		(SELECT country FROM countries c);
+
+#na zaver updatuju nazvy statu tak, aby se jmenovali stejne jako v tabulce countries
+UPDATE life_expectancy 
+	SET country = 'Libyan Arab Jamahiriya'
+	WHERE country = 'Libya';
+
+
+#porad ty same
+SELECT 
+ 	DISTINCT  country
+ FROM religions r 
+	WHERE country NOT IN 
+		(SELECT country FROM countries c);
+	
+UPDATE religions 
+	SET country = 'Libyan Arab Jamahiriya'
+	WHERE country = 'Libya';
+
+	#Libya, Kosovo, Burma(Myanmar); Cabo Verde (Cape Verde, ale jen pul milionu obyvatel); Congo (Br%) (Congo); Congo (%Ki)(Congo); Korea, South (South Korea); Russia (Russian Federation), US (United States) 
+SELECT 
+ 	DISTINCT  country
+ FROM covid19_basic_differences cbd 
+	WHERE country NOT IN 
+		(SELECT country FROM countries c);
+
+#da se provest update vice poli najednou? 
+UPDATE covid19_basic_differences 
+	SET country = 'Libyan Arab Jamahiriya'
+	WHERE country = 'Libya';
+UPDATE covid19_basic_differences 
+	SET country = 'Burma'
+	WHERE country = 'Myanmar';
+UPDATE covid19_basic_differences 
+	SET country = 'Congo'
+	WHERE country LIKE 'Congo%';
+UPDATE covid19_basic_differences 
+	SET country = 'South Korea'
+	WHERE country = 'Korea, South';
+UPDATE covid19_basic_differences 
+	SET country = 'Russian Federation'
+	WHERE country = 'Russia';
+	
+ 
+UPDATE covid19_basic_differences 
+SET country = 'Czech Republic'
+WHERE country = 'Czechia';
+
+UPDATE lookup_table 
+SET country = 'Czech Republic'
+WHERE country = 'Czechia';
 
 #uprava dat pro pocitani prumerne teploty
 UPDATE weather 
 SET temp = REPLACE (temp,
 			' °c',
 			'');
+#jeste jsem pridala odstraneni prazdnych mist - pouzila bych trim, ale neprisla jsem na to, jak
+UPDATE weather 
+SET temp = REPLACE (temp,
+			' ',
+			'');
+
 #---------------------------------------------------------------------------------------------------------------------------------------------
 #zacinam vytvaret view, ktere pozdeji spojim
 #tady bych rada upravila jako jedno view jiz od zacatku
+		
 #HDP/obyvatel
 CREATE OR REPLACE VIEW HDP_na_obyvatele AS
 SELECT  
 	GDP/population AS HDP_na_obyvatele,
 	country,
-	MAX(`year`) 
+	MAX(`year`)
 FROM economies e
 	WHERE GDP IS NOT NULL 
 	GROUP BY country; 
@@ -72,7 +146,7 @@ CREATE OR REPLACE VIEW pocet_hodin AS
 SELECT 
 	w.city,
 	w.`date`,
-	COUNT(w.`time`)*3 AS pocet_hodin_bez_srazek,
+	COUNT(CAST(w.`time` AS double))*3 AS pocet_hodin_bez_srazek,
 	w.rain, 
 	c.country 
 FROM weather w
@@ -99,19 +173,19 @@ CREATE OR REPLACE VIEW casove_promenne AS
 	SELECT 
 		date,
 		country,
-		(case when month(date) in (12, 1, 2) then 3
-      		when month(date) in (3, 4, 5) then 0
-      		when month(date) in (6, 7, 8) then 1
-      		when month(date) in (9, 10, 11) then 2
- 		end) as rocni_obdobi,
- 		(case when WEEKDAY(date) in (0,1,2,3,4) then true
-      		else false end) as pracovni_den
+		(CASE WHEN month(date) IN (12, 1, 2) THEN 3
+      		WHEN month(date) IN (3, 4, 5) THEN 0
+      		WHEN month(date) IN (6, 7, 8) THEN 1
+      		WHEN month(date) IN (9, 10, 11) THEN 2
+ 		END) AS rocni_obdobi,
+ 		(CASE WHEN WEEKDAY(date) IN (0,1,2,3,4) THEN TRUE
+      		ELSE FALSE END) AS pracovni_den
  	FROM covid19_basic_differences cbd; 
  
 #view s pridanim sloupce pro silu vetru 
 CREATE OR REPLACE VIEW teplota_vitr AS
  SELECT  
-	AVG(w.temp) AS prumerna_teplota,
+	AVG(CAST(w.temp AS double)) AS prumerna_teplota,
 	MAX(CAST(LEFT(w.gust,2) AS UNSIGNED INTEGER)) AS sila_vetru,
 	w.city,
 	c.country, 
@@ -148,10 +222,6 @@ JOIN nabozenstvi n ON n.country = cp.country
 JOIN rozdil_doziti rd ON rd.country = cp.country
 JOIN ekonomicke_ukazatele eo ON eo.country = cp.country;
 
-
-
-   
- 
 
 
 
